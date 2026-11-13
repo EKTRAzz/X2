@@ -1,0 +1,50 @@
+name: Build SpatialConvolver iOS Dylib
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode SDK
+        id: sdk
+        run: |
+          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
+          echo "SDK_PATH=$SDK_PATH" >> $GITHUB_ENV
+          echo "iOS SDK Path: $SDK_PATH"
+
+      - name: Compile SpatialConvolver.dylib
+        run: |
+          clang -dynamiclib \
+            -arch arm64 \
+            -arch arm64e \
+            -isysroot "${{ env.SDK_PATH }}" \
+            -miphoneos-version-min=14.0 \
+            -O3 \
+            -fobjc-arc \
+            -framework Foundation \
+            -framework AudioToolbox \
+            -framework Accelerate \
+            SpatialConvolver.m fishhook.c \
+            -o SpatialConvolver.dylib
+
+      - name: Verify Mach-O Binary
+        run: |
+          lipo -info SpatialConvolver.dylib
+          otool -L SpatialConvolver.dylib
+          ls -lh SpatialConvolver.dylib
+
+      - name: Upload Dylib Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SpatialConvolver-iOS-Dylib
+          path: SpatialConvolver.dylib
